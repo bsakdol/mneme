@@ -20,9 +20,15 @@ The plugin packages a growing collection of skills that cover the full lifecycle
 
 Register the plugin source, then install it to your user scope:
 
-From GitHub:
+From GitHub (HTTPS):
 ```bash
 claude plugin marketplace add https://github.com/bsakdol/mneme
+claude plugin install mneme --scope user
+```
+
+From GitHub (SSH):
+```bash
+claude plugin marketplace add git@github.com:bsakdol/mneme
 claude plugin install mneme --scope user
 ```
 
