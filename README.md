@@ -18,8 +18,15 @@ The plugin packages a growing collection of skills that cover the full lifecycle
 
 **User-level** (applies across all projects):
 
-Register the local directory as a plugin source, then install it to your user scope:
+Register the plugin source, then install it to your user scope:
 
+From GitHub:
+```bash
+claude plugin marketplace add https://github.com/bsakdol/mneme
+claude plugin install mneme --scope user
+```
+
+From a local clone:
 ```bash
 claude plugin marketplace add /path/to/mneme
 claude plugin install mneme --scope user
