@@ -1,0 +1,22 @@
+{
+  "description": "Personal Claude Code plugins",
+  "name": "bsakdol-plugins",
+  "owner": {
+    "name": "Bradley Sakdol",
+    "url": "https://github.com/bsakdol"
+  },
+  "plugins": [
+    {
+      "description": "LLM Wiki toolkit — skills for building and maintaining a personal knowledge base as a Claude-powered wiki in Obsidian.",
+      "keywords": [
+        "wiki",
+        "knowledge-management",
+        "obsidian",
+        "second-brain",
+        "llm"
+      ],
+      "name": "mneme",
+      "source": "./"
+    }
+  ]
+}
