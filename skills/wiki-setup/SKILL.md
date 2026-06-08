@@ -30,7 +30,7 @@ This skill ships bundled assets in the `assets/` directory next to this SKILL.md
 The base directory of this skill is provided in your context at invocation time.
 Before executing any phase, note the absolute paths to these assets:
 
-- `{skill_base_dir}/assets/CLAUDE-template.md` — parameterized CLAUDE.md schema (contains `{{OWNER_NAME}}` token)
+- `{skill_base_dir}/assets/CLAUDE-template.md` — parameterized CLAUDE.md schema (contains `{{OWNER_NAME}}` and `{{TODAY}}` tokens)
 - `{skill_base_dir}/assets/index-template.md` — skeleton index.md (contains `{{TODAY}}` token)
 - `{skill_base_dir}/assets/log-template.md` — skeleton log.md (contains `{{TODAY}}` token)
 - `{skill_base_dir}/assets/demo-source.md` — bundled LLM Wiki overview article
@@ -229,7 +229,8 @@ The vault is located at: VAULT_PATH
 
 1. Read the file at: SKILL_ASSETS_DIR/assets/CLAUDE-template.md
 2. Replace every occurrence of the string {{OWNER_NAME}} with: OWNER_NAME_VALUE
-3. Write the result to: VAULT_PATH/CLAUDE.md
+3. Replace every occurrence of the string {{TODAY}} with: TODAY_VALUE
+4. Write the result to: VAULT_PATH/CLAUDE.md
 
 Do not create any other files or folders. That is your complete task.
 ```

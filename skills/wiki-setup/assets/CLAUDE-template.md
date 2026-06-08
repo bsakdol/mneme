@@ -1,4 +1,12 @@
-<!-- wiki-setup v0.1.0 | schema snapshot 2026-06-01 -->
+---
+title: Wiki Operating Schema
+type: schema
+schema_version: 0.2.0
+created: {{TODAY}}
+updated: {{TODAY}}
+generated_by: mneme:wiki-setup
+---
+
 # CLAUDE.md — Wiki Operating Schema
 
 > You are reading the operating manual for {{OWNER_NAME}}'s personal LLM Wiki. This file is the source of truth for how the wiki is structured and how you must behave when working in this vault. Read it fully before doing anything else.
@@ -251,6 +259,7 @@ Open questions and unresolved items. Each has frontmatter, a clear question, wha
 When {{OWNER_NAME}} says "ingest this" or drops a source, follow these steps in order:
 
 1. **Confirm the source.** If it's a URL, fetch it. If it's a file path, read it. If it's pasted text, work with that. Save the canonical version into `raw/<category>/YYYY-MM-DD-slug.ext`. If it's an image-heavy article, list the images so {{OWNER_NAME}} can decide which to download separately for you to view.
+   - **Normalize root-relative links before saving.** Web docs often emit links relative to the site root (e.g., `[x](/en/foo)`). A bare `/en/foo` is not a faithful archive — the live page resolved it against its domain — and Obsidian treats the leading slash as a vault path, silently creating a blank phantom note on click. Rewrite such links to absolute URLs using the source's domain (`[x](https://domain.tld/en/foo)`) so raw docs stay self-contained and inert. Same-page anchor links (`[x](#section)`) are fine; leave them.
 
 2. **Read it fully.** Don't skim. If it's long, summarize in chunks.
 
@@ -276,7 +285,7 @@ When {{OWNER_NAME}} says "ingest this" or drops a source, follow these steps in 
    - Set/bump `updated:` on every touched page
    - For each updated page, briefly note in chat what changed
 
-7. **Update `index.md`.** Add new pages, bump entries for updated ones.
+7. **Update `index.md`.** Add new pages, bump entries for updated ones. **Then reconcile the catalog against disk** — after any multi-page or batch ingest (especially one drafted via parallel subagents), confirm every page written under `wiki/` has a matching `index.md` entry. Fast check: compare per-type file counts against index entry counts, e.g. `find wiki/concepts -name '*.md' | wc -l` versus the number of entries under `## Concepts`. Pages can be created and cross-linked yet slip past the catalog; reconcile before the session ends so the index never drifts from disk.
 
 8. **Append to `log.md`.** Use the format below.
 
@@ -396,7 +405,7 @@ Every tag in use must be registered in `meta/tags.md` with a one-line definition
 
 ## When To Update This Schema
 
-This file evolves. When you and {{OWNER_NAME}} discover a convention that's working (or one that isn't), propose a schema change. Schema changes are logged in `log.md` with action `schema-change` and bump the `version:` and `last_updated:` in this file's frontmatter.
+This file evolves. When you and {{OWNER_NAME}} discover a convention that's working (or one that isn't), propose a schema change. Schema changes are logged in `log.md` with action `schema-change` and bump `schema_version` (semver) and `updated` in this file's frontmatter.
 
 ## First-Read Checklist for Every New Session
 

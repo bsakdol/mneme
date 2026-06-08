@@ -78,8 +78,8 @@ Skills follow the `wiki-*` prefix convention per the requirements doc (`docs/bra
 ## Versioning
 
 - Plugin version lives in `.claude-plugin/plugin.json`.
-- Each skill's bundled schema snapshot version is recorded in the first line comment of its `assets/CLAUDE-template.md` (e.g., `<!-- wiki-setup v0.1.0 | schema snapshot 2026-06-01 -->`).
-- Bump both when the schema in `CLAUDE-template.md` changes.
+- Each skill's bundled schema version is recorded in the `schema_version` field of the frontmatter in its `assets/CLAUDE-template.md` (semver, e.g., `schema_version: 0.2.0`). The `generated_by` field records which skill scaffolded the vault as a static `plugin:skill` identifier (e.g., `mneme:wiki-setup`) — no version suffix.
+- Bump `schema_version` when the schema in `CLAUDE-template.md` changes.
 
 ### Version bump rules (semantic versioning)
 
@@ -90,16 +90,12 @@ After **every** change to this plugin, you must:
    - **minor** (`x.Y.0`) — new skills, new optional fields, backwards-compatible feature additions
    - **major** (`X.0.0`) — breaking changes to the vault schema contract, removed skills, or renamed frontmatter fields that require users to migrate existing vaults
 2. Create a GitHub Release tagged `vx.y.z` with a brief description of what changed. Release notes live on GitHub — there is no `CHANGELOG.md` in this repo.
-3. Rebuild the cowork-compatible plugin archive from the repo root:
-   ```bash
-   zip -r ../mneme.plugin . -x "*.DS_Store"
-   ```
 
 ## The Vault Schema
 
-`skills/wiki-setup/assets/CLAUDE-template.md` is the canonical LLM Wiki schema. It defines the three-layer vault structure (`raw/`, `wiki/`, `meta/`), all nine page types and their required sections, frontmatter fields, file naming rules, ingest/query/lint workflows, and hygiene rules. This file is written verbatim into each new vault (with `{{OWNER_NAME}}` substituted) and becomes the vault's operating contract.
+`skills/wiki-setup/assets/CLAUDE-template.md` is the canonical LLM Wiki schema. It defines the three-layer vault structure (`raw/`, `wiki/`, `meta/`), all nine page types and their required sections, frontmatter fields, file naming rules, ingest/query/lint workflows, and hygiene rules. This file is written verbatim into each new vault (with `{{OWNER_NAME}}` and `{{TODAY}}` substituted) and becomes the vault's operating contract.
 
-When the schema evolves, update `CLAUDE-template.md` and bump the snapshot version comment on line 1. Existing vaults are **not** retroactively updated — the new schema only takes effect in freshly bootstrapped vaults.
+When the schema evolves, update `CLAUDE-template.md` and bump the `schema_version` field in its frontmatter. Existing vaults are **not** retroactively updated — the new schema only takes effect in freshly bootstrapped vaults.
 
 ## Global Settings
 
