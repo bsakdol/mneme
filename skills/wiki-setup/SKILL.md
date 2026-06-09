@@ -48,7 +48,7 @@ Use **AskUserQuestion** with:
 - question: `"Where should the wiki be set up?"`
 - header: `"Vault location"`
 - options:
-  - label: `"Current directory"`, description: the resolved absolute path of cwd
+  - label: `"Current directory (Recommended)"`, description: the resolved absolute path of cwd
   - label: `"Different location"`, description: `"I'll type the full path to my Obsidian vault"`
 
 If they select **Current directory**, set VAULT_PATH to the cwd absolute path.
@@ -100,24 +100,25 @@ Write no files. Take no further action. Exit the skill.
 
 ## Step 3: Vault Configuration
 
-Use **AskUserQuestion** for each of the four questions below. Ask them in sequence — wait for each reply before presenting the next.
+**Interaction rule for this entire step:** Ask one question at a time using **AskUserQuestion**. Do not ask multiple questions in a single message. Do not present questions as a numbered or bulleted list. Wait for the reply before presenting the next question.
 
 **Question 1 — Vault name:**
 
 Use **AskUserQuestion** with:
 - question: `"What would you like to name this vault? No spaces — use hyphens or underscores."`
 - header: `"Vault name"`
-- options: 3 common examples, e.g. `personal`, `work`, `research` (user types their own via Other)
+- options: 3 common examples, e.g. `personal (Recommended)`, `work`, `research` — mark the first as recommended; the user types their actual name via Other
 
 If the response contains a space, immediately use **AskUserQuestion** again with the same question, noting: "Vault names cannot contain spaces — try `{spaces-replaced-with-hyphens}` instead." Re-ask until you receive a valid name. Store as VAULT_NAME.
 
 **Question 2 — Owner name:**
 
-Ask conversationally — this is a free-text input where the owner is expected to type their name:
+Use **AskUserQuestion** with:
+- question: `"What name should the wiki use for you? This will appear throughout CLAUDE.md wherever the wiki refers to its owner — for example, \"Jordan curates sources\" or \"Jordan reads the wiki.\""`
+- header: `"Owner name"`
+- options: 3 plausible example names such as a first name, a full name, and a nickname (e.g. `Jordan (Recommended)`, `Jordan Smith`, `jsmith`) — mark the first as recommended; the owner types their actual name via Other
 
-> **What name should the wiki use for you?** This will appear in CLAUDE.md wherever the wiki refers to its owner — for example, "Jordan curates sources" or "Jordan reads the wiki."
-
-Wait for their reply. Store as OWNER_NAME.
+Store the response as OWNER_NAME.
 
 **Question 3 — Vault description:**
 
@@ -127,7 +128,7 @@ Use **AskUserQuestion** with:
 - question: `"Give this vault a short description:"`
 - header: `"Description"`
 - options:
-  - label: your derived recommendation (first option — the user can select it directly to accept)
+  - label: your derived recommendation followed by `(Recommended)` — e.g. `"Jordan's personal research wiki (Recommended)"`
   - label: `"Type my own"`, description: `"I'll enter a custom description"`
 
 If they select the recommendation directly, use it as VAULT_DESCRIPTION. If they select "Type my own" or Other, use what they type as VAULT_DESCRIPTION.
@@ -138,8 +139,8 @@ Use **AskUserQuestion** with:
 - question: `"How much of a walkthrough would you like during setup?"`
 - header: `"Tutorial depth"`
 - options:
+  - label: `"Standard (Recommended)"`, description: `"Guided tour of the vault structure, CLAUDE.md, and a narrated demo ingest"`
   - label: `"Minimal"`, description: `"Brief orientation — what was created and how to run your first ingest"`
-  - label: `"Standard"`, description: `"Guided tour of the vault structure, CLAUDE.md, and a narrated demo ingest"`
   - label: `"Full"`, description: `"Deep dive into the schema, every page type, the ingest workflow, and fully narrated demo"`
 
 Store as DEMO_DEPTH.

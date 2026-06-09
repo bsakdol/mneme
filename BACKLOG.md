@@ -42,7 +42,7 @@ Requirements context: [`docs/brainstorms/mneme-wiki-plugin-requirements.md`](doc
 
 | Skill | Description | Priority |
 |-------|-------------|----------|
-| `wiki-config` | Update vault configuration post-setup (name, description, default vault, etc.). | Low |
+| `wiki-config` | Update vault configuration post-setup (name, description, default vault, etc.). Future consideration: support setting a project-level vault association (writing `{ "mneme": { "vault": "<name>" } }` to `.claude/settings.local.json`) so skills auto-resolve the correct vault per project without an inline override. | Low |
 
 ---
 
