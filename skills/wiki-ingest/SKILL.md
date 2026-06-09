@@ -96,7 +96,7 @@ If no source was provided, use **AskUserQuestion**:
 - question: `"What would you like to ingest?"`
 - header: `"Source"`
 - options:
-  - label: `"A URL"`, description: `"Paste a web address to fetch"`
+  - label: `"A URL (Recommended)"`, description: `"Paste a web address to fetch"`
   - label: `"A file path"`, description: `"Absolute path or path relative to the vault"`
   - label: `"Paste text"`, description: `"Type or paste content directly"`
 
