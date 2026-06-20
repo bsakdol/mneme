@@ -1,7 +1,7 @@
 ---
 title: Wiki Operating Schema
 type: schema
-schema_version: 0.3.0
+schema_version: 0.7.0
 created: {{TODAY}}
 updated: {{TODAY}}
 generated_by: mneme:wiki-setup
@@ -84,7 +84,9 @@ sources: ["[[reference-or-solution-slug]]"]   # wiki-links to source pages backi
 ---
 ```
 
-**A bare `?` is not a valid field value.** Don't use `?` as a placeholder for an unknown value — leave the field blank instead. The hazard is a value that is *only* `?` (e.g. `author: ?`): YAML may read the leading `?` as a complex-key indicator and silently corrupt every field after it. A `?` *within* a value is fine — `title: "What is X?"` is valid, and quoting any value that contains `?` is always safe.
+**Never use a bare `?` as the entire value of a field.** A lone `?` is YAML syntax for a complex mapping key and will silently corrupt the frontmatter — every field after it may be misparsed. When a value is unknown, **leave the field empty** rather than writing `?`. Not allowed: `date_published: ?`, `author: ?`, `type: ?`.
+
+A `?` **inside** a value is fine — it is ordinary text, not syntax. Question-shaped titles and URLs with query strings are valid as-is (quote the value if it also contains other YAML-special characters). Allowed: `title: "What happens next?"`, `source_url: "https://example.com/x?more=abc123"`.
 
 **Topics add (optional):**
 
@@ -101,6 +103,7 @@ source_paths: ["raw/articles/2026-05-27-foo.md"]   # one or more raw docs this r
 author: "Name"                       # if known
 date_published: YYYY-MM-DD            # if known
 ingested: YYYY-MM-DD
+last_checked: YYYY-MM-DD              # (optional) date the live source was last compared against this page
 domains: [personal, research, ...]    # which life-areas this touches
 ```
 
@@ -124,14 +127,6 @@ domains: [...]
 
 `updated` is bumped on **every** meaningful edit. Not for typo fixes.
 
-**Maintenance field (suite-maintained, optional):**
-
-```yaml
-last_checked: YYYY-MM-DD   # when the maintenance suite last verified this page
-```
-
-`last_checked` is written and maintained by the mneme maintenance suite, not by hand. When absent, the suite backfills it to the page's `ingested` date (or `created` if the page has no `ingested`) — never to today, since an unchecked page hasn't actually been verified. Audit uses it to surface pages that haven't been checked in a long time.
-
 ## Linking Conventions
 
 - **All cross-references use Obsidian wiki-links**: `[[slug]]` or `[[slug|Display Text]]`.
@@ -139,7 +134,6 @@ last_checked: YYYY-MM-DD   # when the maintenance suite last verified this page
 - **First mention** of an entity/concept in any page must be a wiki-link. Subsequent mentions on the same page don't need to be re-linked.
 - **Hub pages** (topics) should link out to all entities and concepts in their domain. Entities and concepts should link back to relevant topics.
 - **Aim for dense linking.** A page with zero outbound links is suspicious. A page with zero inbound links is an orphan and must be fixed during maintenance.
-- **Forward links.** When you deliberately link to a page that doesn't exist yet — a pattern not yet graduated to its own concept page, or an entity you plan to create — mark the link with a trailing `(forward link)` annotation: `[[planned-slug]] (forward link)`. This tells maintenance the dangling target is sanctioned, not a broken link. When the target page is later created, drop the annotation.
 
 ## Page Types — What Each One Is
 
@@ -170,7 +164,7 @@ Sections:
 8. **Sources**
 
 **When does something graduate to a concept?**
-A pattern earns its own concept page only when it appears in **two distinct projects**, OR in **one project plus one external reference** describing the same idea. Two appearances within the same project don't count — that's a project-specific pattern, not a graduated abstraction. Until a pattern meets the bar, document it on the relevant project or solution page and **link forward** — mark the reference `[[planned-slug]] (forward link)` per the Linking Conventions, so maintenance treats the dangling link as sanctioned rather than broken. When it later qualifies, promote it: create the concept page, update the prior mentions to wiki-link to it, and drop the `(forward link)` annotations.
+A pattern earns its own concept page only when it appears in **two distinct projects**, OR in **one project plus one external reference** describing the same idea. Two appearances within the same project don't count — that's a project-specific pattern, not a graduated abstraction. Until a pattern meets the bar, document it on the relevant project or solution page and link forward. When it later qualifies, promote it: create the concept page and update the prior mentions to wiki-link to it.
 
 ### Topic (`wiki/topics/`)
 A domain or umbrella area. Larger than a concept, narrower than the whole wiki. "VA disability benefits," "transformer architectures," "stoic philosophy."
@@ -300,33 +294,107 @@ When {{OWNER_NAME}} says "ingest this" or drops a source, follow these steps in 
 
 9. **Report back.** Brief summary in chat: "Ingested. Touched N pages. Created M. Conflicts flagged: K." List them.
 
+## Update Workflow — Re-ingesting a Changed Source
+
+When {{OWNER_NAME}} says "update this" or "re-ingest this" for a source already in the wiki, follow these steps:
+
+1. **Fetch and save a new raw file.** Save the current version of the source into `raw/<category>/YYYY-MM-DD-slug.ext` using today's date. The original raw file is **immutable — leave it untouched.** Both versions now coexist in `raw/`, and the date prefixes tell the history.
+
+2. **Identify the existing reference page.** Find the reference page whose `source_paths:` points to the original raw file.
+
+3. **Diff the versions.** Compare the new raw file against the existing reference page's **Key claims** section (or against the old raw file if you need a lower-level diff). In chat, surface:
+   - What was added
+   - What was removed or substantially changed
+   - What claims in the wiki are now stale or contradicted
+   - Whether the scope of the source has shifted enough to warrant a new page vs. an in-place revision
+
+4. **Wait for {{OWNER_NAME}}'s response.** Same gate as ingest — don't touch wiki pages until he confirms the plan.
+
+5. **Decide: revise in place or create a versioned reference?**
+   - **Revise in place** when the update is incremental — new data, clarified claims, updated figures. Update the existing reference page, add the new raw file to `source_paths:`, and bump `last_checked:` and `updated:`.
+   - **Create a versioned reference** when the update is a substantial rewrite, the old version is historically meaningful, or the source has shifted scope. Create a new reference page with today's date slug. Mark the old reference `status: superseded` with `successor: [[new-slug]]`.
+
+6. **Apply conflict callouts for any contradicted claims.** If the new version contradicts something already stated on a wiki page, follow the Conflict Policy — flag and preserve both, don't silently overwrite.
+
+7. **Propagate changes.** Update every wiki page (topics, entities, concepts) that cited the old reference. Stale claims that the new source cleanly supersedes can be updated in place; ambiguous or contradicted claims get a conflict callout.
+
+8. **Update `index.md` and append to `log.md`.** Use action `ingest` with a note that it's a re-ingest: e.g., `ingest (update) | source-slug`.
+
+9. **Bump `last_checked:`** on the reference page to today's date, whether or not anything changed. This is the freshness signal future maintenance passes use to flag stale references.
+
+**Staleness during maintenance.** `mneme:wiki-audit` flags reference pages where `last_checked:` is absent or older than 6 months as **stale references** worth re-checking. This is surfaced as a suggestion, not an automatic update; {{OWNER_NAME}} decides whether to re-ingest.
+
 ## Query Workflow
 
 When {{OWNER_NAME}} asks a question:
 
 1. **Read `index.md` first.** It's your fastest map.
 2. **Drill into relevant pages.** Read them in full, not just titles. Follow links one hop where useful.
+   - **Search tactics — index first, grep narrow.** The index is your discovery layer and is already in context mid-session; consult it before reaching for any search. `grep` is a *targeted* tool — for structured bookkeeping files (`index.md`, `log.md`) or a specific page the index already pointed you to — not a broad corpus scan over common words (`memory`, `model`, `state`, `context`), which returns noise across dozens of pages and rarely finds what a title-level index lookup would. If you don't know where something lives, the index tells you; if the index doesn't list it, that's a fast negative — see step 6.
 3. **For best-practice queries, prefer canonical references.** When the question is "how should I do X" or "what's the right approach to Y," start from the relevant topic's **Canonical references** section (if it has one) or from `wiki/references/` pages tagged to the topic, before pulling in `wiki/solutions/` or project pages. This keeps externally-validated authority distinct from our own narrative.
 4. **Synthesize.** Answer in chat with inline `[[wiki-link]]` citations.
 5. **Offer to file the answer.** If the synthesis is non-trivial or required cross-referencing 3+ pages, ask: "Want me to file this as an analysis page?" If yes, write it into `wiki/analyses/`, update index, log it.
-6. **Note gaps.** If the wiki couldn't fully answer, suggest:
+6. **Note gaps — a missing index entry is a fast negative.** If no `index.md` page sits in the relevant neighborhood, treat the answer as "not in the vault" and go external; the missing index entry *is* the signal to search the web, not a prompt to grep harder over the same corpus. When the wiki couldn't fully answer, suggest:
    - A `questions/` entry, or
    - A source to seek out, or
    - A web search to fill the gap
+
+## Research Workflow
+
+When {{OWNER_NAME}} says **"research X"** (or "look into X," "find out about X," "dig into X"), he is asking for **outbound investigation** — go beyond the vault, gather external material, and synthesize it. This is distinct from the other two inbound-facing workflows:
+
+- **Ingest** — {{OWNER_NAME}} supplies the source; you archive and distill it.
+- **Query** — {{OWNER_NAME}} asks a question; you answer from what's already in the vault.
+- **Research** — {{OWNER_NAME}} names a subject; you go find sources, archive the ones that matter, and synthesize an answer that stays in the wiki.
+
+The defining property: **research that cites a source must leave that source in `raw/`.** A synthesis built on web material that vanishes after the session is unciteable and unverifiable — it would violate the no-fabrication rule the moment the links rot. Archiving the backing sources is what makes a research answer a first-class wiki citizen rather than disposable chat.
+
+Steps:
+
+1. **Check the vault first.** Read `index.md` and any neighboring pages (the Query Workflow's discovery step). Research *extends* the vault — know what's already known before going external, so the synthesis builds on existing pages instead of duplicating them.
+
+2. **Fan out externally.** Fan out subagents for substantive multi-source questions, or targeted web search/fetch for narrower ones. When necessary, Firecrawl may be used. Read candidate sources in full, not just snippets.
+
+3. **Surface findings first, before writing anything.** Same gate as Ingest — in chat, give {{OWNER_NAME}}:
+   - A 3-5 sentence TL;DR of what you found
+   - 5-10 atomic key claims, each tied to the source that backs it
+   - The **candidate sources to archive** — *only the ones that materially back a claim in the synthesis.* Sources you opened but didn't end up citing are listed as "read, not archiving" so {{OWNER_NAME}} can override, but are not saved by default. This keeps `raw/` from filling with marginal pages.
+   - New vs. existing entities and concepts
+   - Any contradictions with existing wiki content
+   - A proposed page plan: which references to create (one per cited source), and the analysis (or solution) page that will hold the synthesis
+   - Explicit asks: "Are these the right sources to keep? Should the synthesis be an analysis or a solution? Promote any of these to their own concept/topic page?"
+
+4. **Wait for {{OWNER_NAME}}'s response.** Do not write to `raw/` or `wiki/` until he confirms or modifies the plan. He may add sources to keep, drop ones you proposed, or redirect the synthesis.
+
+5. **Execute, once aligned.** For **each cited source**:
+   - Fetch the canonical version and save it to `raw/<category>/YYYY-MM-DD-slug.ext`, following all Ingest hygiene rules — date-prefixed slug, root-relative link normalization, `raw/` left immutable thereafter.
+   - Write a `reference` page distilling it, with full source metadata and `source_paths:` pointing at the archived raw file.
+
+   Then write the **synthesis** as an `analysis` page (the default — research answers a question) or a `solution` page (if it reads more as a record of work), citing the new reference pages and any existing pages used.
+
+6. **Cross-link in both directions**, set/bump `updated:`, and wire the new pages into the relevant topic hubs so nothing lands orphaned.
+
+7. **Update `index.md`** with every new page, then reconcile against disk (same per-type count check as Ingest).
+
+8. **Append to `log.md`** with action `research`.
+
+9. **Report back.** "Researched X. Archived N sources, wrote N references + 1 analysis. Conflicts: K."
+
+**Note on archival scope.** Only sources you actually cite get saved — this is deliberate and aligns with the existing book-reference convention (we don't archive marketing/landing pages just because we passed through them). If a source is borderline, surface it in step 3 and let {{OWNER_NAME}} decide rather than archiving silently.
 
 ## Maintenance
 
 When {{OWNER_NAME}} says "lint", "audit", "health check the wiki", or "find gaps," maintenance is performed by the **mneme maintenance suite** (installed with the plugin), not by hand:
 
 - **`mneme:wiki-lint`** — structural consistency: frontmatter, tags, links.
-- **`mneme:wiki-audit`** — stale, thin, or inconsistent pages.
+- **`mneme:wiki-audit`** — stale, thin, or inconsistent pages (including stale references whose `last_checked:` is absent or older than 6 months).
 - **`mneme:wiki-gaps`** — pages that should exist (broken-link targets, unreferenced concepts).
 - **`mneme:wiki-steward`** (agent) — runs all three autonomously, applies the safe and low-risk fixes, and writes a prioritized report to `meta/maintenance-reports/`.
 - **`mneme:wiki-triage`** — walks {{OWNER_NAME}} through the report's judgment-required items.
 
 Run `wiki-lint` → `wiki-audit` → `wiki-gaps` interactively for a guided pass, or dispatch `wiki-steward` for a hands-off sweep followed by `wiki-triage`. The suite owns the check dimensions and the fix procedures; this schema owns the page contract those checks validate against (page types, frontmatter, naming, linking, hygiene).
 
-> **Maintenance requires the mneme plugin.** Without it installed, this vault remains fully usable for reading and ingest, but the automated maintenance commands above are unavailable.
+> **Maintenance requires the mneme plugin.** Without it installed, this vault remains fully usable for reading, ingest, query, update, and research, but the automated maintenance commands above are unavailable.
 
 ## Conflict Policy
 
@@ -378,7 +446,9 @@ Format:
 **Conflicts:** none | [[page5]]
 ```
 
-Actions: `ingest`, `query`, `analysis`, `lint`, `refactor`, `schema-change`, `note`.
+Actions: `ingest`, `update`, `query`, `research`, `analysis`, `lint`, `refactor`, `schema-change`, `note`.
+
+Use `update` (not `ingest`) when re-ingesting a source that was already in the wiki — this makes re-ingest events grep-distinguishable from first-time ingests.
 
 To get the last 5 entries: `grep "^## \[" log.md | tail -5`.
 
