@@ -49,7 +49,7 @@ Exit the skill.
 **If no vault was named**, run the resolver:
 
 ```bash
-bash "{skill_base_dir}/scripts/resolve-vault.sh"
+bash "${CLAUDE_PLUGIN_ROOT}/scripts/resolve-vault.sh"
 ```
 
 Branch on the token:
