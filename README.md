@@ -147,7 +147,7 @@ Compare X and Y based on what's in the wiki — file it as an analysis if it's n
 ## Requirements
 
 - Claude Code CLI or desktop app
-- No external MCP servers, additional plugins, or internet access required at runtime
+- No external MCP servers or internet access required at runtime. Core lifecycle stages (setup, ingest, query) need no additional plugins; **maintenance** (lint/audit/gaps plus the steward agent) is provided by mneme itself, so those commands require the plugin to be installed.
 - Individual skills may have their own prerequisites — see each skill's README
 
 ---
