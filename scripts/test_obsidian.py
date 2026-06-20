@@ -80,18 +80,10 @@ class TestResolution(unittest.TestCase):
         self.assertEqual(a, "^block-id")
 
 
-class TestEmbedsAndForward(unittest.TestCase):
+class TestEmbedsAndLines(unittest.TestCase):
     def test_embed_detected(self):
         live, _ = obsidian.extract_links("![[diagram.png]]")
         self.assertTrue(live[0].is_embed)
-
-    def test_forward_link_annotation(self):
-        live, _ = obsidian.extract_links("the [[future-page]] (forward link) idea")
-        self.assertTrue(live[0].is_forward)
-
-    def test_non_forward_link(self):
-        live, _ = obsidian.extract_links("the [[existing-page]] idea")
-        self.assertFalse(live[0].is_forward)
 
     def test_line_numbers(self):
         live, _ = obsidian.extract_links("line one\nline two [[here]]\nline three")

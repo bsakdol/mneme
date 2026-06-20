@@ -8,6 +8,10 @@ category check depends on:
   - the vault-wide link graph (inbound / outbound)
   - the shared Finding shape and tier enum consumed by the report
 
+Dangling wiki-links (targets with no page) are not special-cased here: the
+schema has no "forward link" annotation, so a check that cares reports them as
+broken-link findings and lets the owner decide.
+
 It is a LIBRARY, not a CLI. The per-skill check scripts
 (skills/<skill>/scripts/<cat>_checks.py) and the wiki-steward agent import it
 via ``${CLAUDE_PLUGIN_ROOT}/scripts`` on ``sys.path``:
@@ -41,9 +45,6 @@ class Tier(str, Enum):
 
 # Page stems that always resolve, even without a wiki/ file backing them.
 SPECIAL_TARGETS = frozenset({"CLAUDE", "index", "log", "tags"})
-
-# A wiki-link is a sanctioned forward link when annotated "(forward link)".
-_FORWARD_TAIL_RE = re.compile(r"\s*\(forward link\)", re.IGNORECASE)
 
 
 # --- Findings --------------------------------------------------------------
@@ -122,7 +123,6 @@ class WikiLink:
     display: str | None    # display text after the (possibly escaped) pipe
     anchor: str | None     # heading or ^block anchor after '#'
     is_embed: bool         # leading '!' — a transclusion/embed
-    is_forward: bool       # annotated "(forward link)" immediately after
     line: int              # 1-based line number in the body
 
 
@@ -160,16 +160,14 @@ def _line_indexer(body: str):
     return line_of
 
 
-def _build_link(m: re.Match, body: str, line_of) -> WikiLink:
+def _build_link(m: re.Match, line_of) -> WikiLink:
     target, display, anchor = resolve_target(m.group(2))
-    tail = body[m.end():m.end() + 24]
     return WikiLink(
         raw=m.group(0),
         target=target,
         display=display,
         anchor=anchor,
         is_embed=(m.group(1) == "!"),
-        is_forward=bool(_FORWARD_TAIL_RE.match(tail)),
         line=line_of(m.start()),
     )
 
@@ -184,7 +182,7 @@ def extract_links(body: str):
     line_of = _line_indexer(body)
     live, inert = [], []
     for m in _WIKILINK_RE.finditer(body):
-        link = _build_link(m, body, line_of)
+        link = _build_link(m, line_of)
         if masked[m.start():m.end()].strip() == "":
             inert.append(link)
         else:
