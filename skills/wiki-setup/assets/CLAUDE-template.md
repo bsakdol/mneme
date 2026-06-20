@@ -1,7 +1,7 @@
 ---
 title: Wiki Operating Schema
 type: schema
-schema_version: 0.2.0
+schema_version: 0.3.0
 created: {{TODAY}}
 updated: {{TODAY}}
 generated_by: mneme:wiki-setup
@@ -84,7 +84,7 @@ sources: ["[[reference-or-solution-slug]]"]   # wiki-links to source pages backi
 ---
 ```
 
-**No `?` character in field values.** YAML reserves `?` as syntax for complex mapping keys. A `?` inside a value will silently corrupt the frontmatter — every field after it may be misparsed. Leave the field blank instead of using `?`.
+**A bare `?` is not a valid field value.** Don't use `?` as a placeholder for an unknown value — leave the field blank instead. The hazard is a value that is *only* `?` (e.g. `author: ?`): YAML may read the leading `?` as a complex-key indicator and silently corrupt every field after it. A `?` *within* a value is fine — `title: "What is X?"` is valid, and quoting any value that contains `?` is always safe.
 
 **Topics add (optional):**
 
@@ -124,13 +124,22 @@ domains: [...]
 
 `updated` is bumped on **every** meaningful edit. Not for typo fixes.
 
+**Maintenance field (suite-maintained, optional):**
+
+```yaml
+last_checked: YYYY-MM-DD   # when the maintenance suite last verified this page
+```
+
+`last_checked` is written and maintained by the mneme maintenance suite, not by hand. When absent, the suite backfills it to the page's `ingested` date (or `created` if the page has no `ingested`) — never to today, since an unchecked page hasn't actually been verified. Audit uses it to surface pages that haven't been checked in a long time.
+
 ## Linking Conventions
 
 - **All cross-references use Obsidian wiki-links**: `[[slug]]` or `[[slug|Display Text]]`.
 - **Source citations are wiki-links to reference or solution pages**, never raw URLs in body text. The URL lives in the source page's frontmatter.
 - **First mention** of an entity/concept in any page must be a wiki-link. Subsequent mentions on the same page don't need to be re-linked.
 - **Hub pages** (topics) should link out to all entities and concepts in their domain. Entities and concepts should link back to relevant topics.
-- **Aim for dense linking.** A page with zero outbound links is suspicious. A page with zero inbound links is an orphan and must be fixed during lint.
+- **Aim for dense linking.** A page with zero outbound links is suspicious. A page with zero inbound links is an orphan and must be fixed during maintenance.
+- **Forward links.** When you deliberately link to a page that doesn't exist yet — a pattern not yet graduated to its own concept page, or an entity you plan to create — mark the link with a trailing `(forward link)` annotation: `[[planned-slug]] (forward link)`. This tells maintenance the dangling target is sanctioned, not a broken link. When the target page is later created, drop the annotation.
 
 ## Page Types — What Each One Is
 
@@ -161,7 +170,7 @@ Sections:
 8. **Sources**
 
 **When does something graduate to a concept?**
-A pattern earns its own concept page only when it appears in **two distinct projects**, OR in **one project plus one external reference** describing the same idea. Two appearances within the same project don't count — that's a project-specific pattern, not a graduated abstraction. Until a pattern meets the bar, document it on the relevant project or solution page and link forward. When it later qualifies, promote it: create the concept page and update the prior mentions to wiki-link to it.
+A pattern earns its own concept page only when it appears in **two distinct projects**, OR in **one project plus one external reference** describing the same idea. Two appearances within the same project don't count — that's a project-specific pattern, not a graduated abstraction. Until a pattern meets the bar, document it on the relevant project or solution page and **link forward** — mark the reference `[[planned-slug]] (forward link)` per the Linking Conventions, so maintenance treats the dangling link as sanctioned rather than broken. When it later qualifies, promote it: create the concept page, update the prior mentions to wiki-link to it, and drop the `(forward link)` annotations.
 
 ### Topic (`wiki/topics/`)
 A domain or umbrella area. Larger than a concept, narrower than the whole wiki. "VA disability benefits," "transformer architectures," "stoic philosophy."
@@ -305,22 +314,19 @@ When {{OWNER_NAME}} asks a question:
    - A source to seek out, or
    - A web search to fill the gap
 
-## Lint Workflow
+## Maintenance
 
-When {{OWNER_NAME}} says "lint" or "health check the wiki," walk the wiki and report:
+When {{OWNER_NAME}} says "lint", "audit", "health check the wiki", or "find gaps," maintenance is performed by the **mneme maintenance suite** (installed with the plugin), not by hand:
 
-1. **Orphans** — pages with zero inbound `[[links]]`. Either link them up or delete.
-2. **Stubs** — pages with `status: stub` that are old enough to either promote or delete.
-3. **Contradictions** — `> [!conflict]` callouts that haven't been resolved.
-4. **Stale claims** — places where newer sources have superseded older claims but the older claim is still phrased as current.
-5. **Missing pages** — entities/concepts mentioned in bold or referenced in plain text across 3+ pages but lacking a dedicated page.
-6. **Concept-graduation candidates** — patterns that now meet the two-projects-or-project-plus-reference bar but still live on project/solution pages instead of having their own concept page.
-7. **Broken links** — `[[wiki-links]]` that don't resolve.
-8. **Frontmatter drift** — pages missing required fields, or with fields that don't match this schema. Includes `?` characters in field values, `parent:` paths that don't match folder location, and `source_paths:` entries pointing to nonexistent raw files.
-9. **Tag sprawl** — tags used only once, or near-synonyms (`#llm` vs `#llms` vs `#language-model`).
-10. **Suggested investigations** — questions worth opening, sources worth seeking.
+- **`mneme:wiki-lint`** — structural consistency: frontmatter, tags, links.
+- **`mneme:wiki-audit`** — stale, thin, or inconsistent pages.
+- **`mneme:wiki-gaps`** — pages that should exist (broken-link targets, unreferenced concepts).
+- **`mneme:wiki-steward`** (agent) — runs all three autonomously, applies the safe and low-risk fixes, and writes a prioritized report to `meta/maintenance-reports/`.
+- **`mneme:wiki-triage`** — walks {{OWNER_NAME}} through the report's judgment-required items.
 
-Report findings as a markdown digest in chat. Don't auto-fix without confirmation. Fix in batches once {{OWNER_NAME}} approves.
+Run `wiki-lint` → `wiki-audit` → `wiki-gaps` interactively for a guided pass, or dispatch `wiki-steward` for a hands-off sweep followed by `wiki-triage`. The suite owns the check dimensions and the fix procedures; this schema owns the page contract those checks validate against (page types, frontmatter, naming, linking, hygiene).
+
+> **Maintenance requires the mneme plugin.** Without it installed, this vault remains fully usable for reading and ingest, but the automated maintenance commands above are unavailable.
 
 ## Conflict Policy
 
