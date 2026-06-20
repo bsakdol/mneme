@@ -163,6 +163,19 @@ class TestLinkGraph(unittest.TestCase):
             # the code-span link must NOT create an edge
             self.assertNotIn("not-a-link", g.outbound["alpha"])
 
+    def test_dangling_referrers(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            vault = Path(tmp)
+            (vault / "wiki" / "concepts").mkdir(parents=True)
+            for name in ("p1", "p2"):
+                (vault / "wiki" / "concepts" / f"{name}.md").write_text(
+                    "---\ntitle: X\n---\nlinks [[ghost]] and [[beta]].\n", encoding="utf-8")
+            (vault / "wiki" / "concepts" / "beta.md").write_text(
+                "---\ntitle: Beta\n---\nreal page.\n", encoding="utf-8")
+            refs = obsidian.dangling_referrers(vault)
+            self.assertEqual(refs.get("ghost"), {"wiki/concepts/p1.md", "wiki/concepts/p2.md"})
+            self.assertNotIn("beta", refs)  # beta resolves, not dangling
+
     def test_valid_target_slugs_includes_specials(self):
         with tempfile.TemporaryDirectory() as tmp:
             vault = self._make_vault(tmp)

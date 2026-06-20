@@ -338,6 +338,29 @@ def build_link_graph(vault: Path) -> LinkGraph:
     return LinkGraph(outbound=outbound, inbound=inbound, pages=pages)
 
 
+# A dangling link referenced by at least this many distinct pages is a
+# missing-page signal (wiki-gaps) rather than a one-off broken link (wiki-lint).
+MISSING_PAGE_MIN_REFS = 3
+
+
+def dangling_referrers(vault: Path) -> dict:
+    """Map each unresolved live-link target -> set of pages (vault-relative)
+    that link to it. Embeds and inert (code-span) links are excluded. Shared by
+    wiki-lint (to suppress missing-page candidates from broken-link noise) and
+    wiki-gaps (to surface the pages that should exist)."""
+    valid = valid_target_slugs(vault)
+    refs: dict = {}
+    for p in iter_wiki_pages(vault):
+        rel = str(p.relative_to(vault))
+        _f, _r, body = split_frontmatter(p.read_text(encoding="utf-8", errors="replace"))
+        live, _inert = extract_links(body)
+        for link in live:
+            if link.is_embed or not link.target or link.target in valid:
+                continue
+            refs.setdefault(link.target, set()).add(rel)
+    return refs
+
+
 def read_schema_version(vault: Path) -> str:
     """Read schema_version from the vault's CLAUDE.md frontmatter (the live
     authority), or '' if unavailable."""
