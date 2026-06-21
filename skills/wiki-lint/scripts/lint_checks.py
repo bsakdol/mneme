@@ -146,6 +146,14 @@ def detect(vault, args):
                 "lint", "tag-single-use", Tier.JUDGMENT.value, next(iter(pages)),
                 f"tag '{tag}' is used on only one page", "merge into an existing tag or drop it"))
 
+    # duplicate-slug: two+ pages share a stem (an ambiguous wiki-link target)
+    for stem, paths in sorted(obsidian.slug_collisions(vault).items()):
+        findings.append(Finding(
+            obsidian.make_id("lint", "duplicate-slug", stem),
+            "lint", "duplicate-slug", Tier.JUDGMENT.value, paths[0],
+            f"slug '{stem}' is used by {len(paths)} pages: {', '.join(paths)}",
+            "rename all but one so slugs are unique vault-wide"))
+
     # tag-near-synonym
     groups: dict = {}
     for tag in tag_pages:

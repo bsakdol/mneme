@@ -300,6 +300,17 @@ def iter_wiki_pages(vault: Path):
         yield from sorted(wiki.rglob("*.md"))
 
 
+def slug_collisions(vault: Path) -> dict:
+    """stem -> sorted list of vault-relative paths, for any stem used by more
+    than one wiki page. Wiki-links resolve by stem, so a collision is an
+    ambiguous link target and silently shadows a page in the link graph — the
+    duplicate-slug lint check surfaces it instead of losing the page quietly."""
+    by_stem: dict = {}
+    for p in iter_wiki_pages(vault):
+        by_stem.setdefault(p.stem, []).append(str(p.relative_to(vault)))
+    return {stem: sorted(paths) for stem, paths in by_stem.items() if len(paths) > 1}
+
+
 def valid_target_slugs(vault: Path):
     """Set of slugs that a wiki-link may resolve to: every wiki page stem plus
     the special bookkeeping targets."""
