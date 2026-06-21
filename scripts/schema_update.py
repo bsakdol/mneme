@@ -29,7 +29,6 @@ import argparse
 import difflib
 import json
 import os
-import re
 import shutil
 import subprocess
 import sys
@@ -45,7 +44,6 @@ TODAY_TOKEN = "{{TODAY}}"
 FRONTMATTER_KEYS = ("title", "type", "schema_version", "created", "updated", "generated_by")
 
 CONFLICT_START = "<<<<<<<"
-_FENCE_RE = re.compile(r"^(```|~~~)")
 
 
 # --- Plugin layout ---------------------------------------------------------
@@ -87,15 +85,10 @@ def _semver_tuple(v: str):
     Pads short versions (``0.7`` -> ``(0, 7, 0)``) so comparisons are stable."""
     if not isinstance(v, str):
         return None
-    raw = v.strip()
-    if not raw:
-        return None
     try:
-        parts = [int(p) for p in raw.split(".")]
+        parts = [int(p) for p in v.strip().split(".")]
     except ValueError:
-        return None
-    if not parts:
-        return None
+        return None  # empty/whitespace ('' -> int('') -> ValueError) lands here too
     while len(parts) < 3:
         parts.append(0)
     return tuple(parts[:3])
@@ -216,19 +209,12 @@ def assemble(frontmatter: str, body: str) -> str:
 
 
 def count_conflicts(text: str) -> int:
-    """Fence-aware count of git conflict regions (KTD-7). A '<<<<<<<' at column 0
-    counts only when OUTSIDE a fenced code block, so literal marker-like content
-    inside ``` / ~~~ fences in the manual is never mis-detected."""
-    in_fence = False
-    count = 0
-    for raw_line in text.split("\n"):
-        line = raw_line.rstrip("\r")
-        if _FENCE_RE.match(line):
-            in_fence = not in_fence
-            continue
-        if not in_fence and line.startswith(CONFLICT_START):
-            count += 1
-    return count
+    """Fence-aware count of git conflict regions (KTD-7). Reuses
+    ``obsidian.mask_inert`` — the repo's single source of code-fence/span/comment
+    classification — to blank inert content first, so a literal '<<<<<<<' inside a
+    fenced code block of the manual is never mis-counted as a real conflict."""
+    masked = obsidian.mask_inert(text)
+    return sum(1 for line in masked.split("\n") if line.startswith(CONFLICT_START))
 
 
 def git_available() -> bool:
@@ -266,10 +252,10 @@ def prepare_update(vault, owner_name: str, today: str, root: Path | None = None,
     root = root or plugin_root()
     claude = Path(vault) / "CLAUDE.md"
     theirs_text = claude.read_text(encoding="utf-8", errors="replace")
-    theirs_fields, _r, theirs_body = obsidian.split_frontmatter(theirs_text)
+    theirs_fields, _, theirs_body = obsidian.split_frontmatter(theirs_text)
     current = str(theirs_fields.get("schema_version", ""))
 
-    bundled_fields, _br, bundled_body = obsidian.split_frontmatter(
+    bundled_fields, _, bundled_body = obsidian.split_frontmatter(
         canonical_template(root).read_text(encoding="utf-8", errors="replace"))
     new_frontmatter = reconstruct_frontmatter(theirs_fields, bundled_fields, today)
     ours_body = personalize(bundled_body, owner_name)  # body has no {{TODAY}}
@@ -290,7 +276,7 @@ def prepare_update(vault, owner_name: str, today: str, root: Path | None = None,
             "diff_text": diff, "reason": reason,
         }
 
-    base_fields, _xb, base_body_raw = obsidian.split_frontmatter(
+    _bf, _, base_body_raw = obsidian.split_frontmatter(
         (base_dir / "CLAUDE-template.md").read_text(encoding="utf-8", errors="replace"))
     base_body = personalize(base_body_raw, owner_name)
 
@@ -307,6 +293,11 @@ def prepare_update(vault, owner_name: str, today: str, root: Path | None = None,
 
 # --- CLI -------------------------------------------------------------------
 
+def _print_json(obj) -> None:
+    json.dump(obj, sys.stdout, indent=2)
+    sys.stdout.write("\n")
+
+
 def main(argv=None) -> int:
     parser = argparse.ArgumentParser(description="mneme vault schema migration core")
     parser.add_argument("vault", help="absolute path to the vault")
@@ -322,22 +313,18 @@ def main(argv=None) -> int:
     root = plugin_root()
 
     if args.report:
-        json.dump(build_report(vault, root), sys.stdout, indent=2)
-        sys.stdout.write("\n")
+        _print_json(build_report(vault, root))
         return 0
 
     if args.prepare:
         ok, why = validate_owner_name(args.owner or "")
         if not ok:
-            json.dump({"error": f"invalid --owner: {why}"}, sys.stdout)
-            sys.stdout.write("\n")
+            _print_json({"error": f"invalid --owner: {why}"})
             return 2
         if not args.today:
-            json.dump({"error": "--today YYYY-MM-DD is required with --prepare"}, sys.stdout)
-            sys.stdout.write("\n")
+            _print_json({"error": "--today YYYY-MM-DD is required with --prepare"})
             return 2
-        json.dump(prepare_update(vault, args.owner, args.today, root), sys.stdout, indent=2)
-        sys.stdout.write("\n")
+        _print_json(prepare_update(vault, args.owner, args.today, root))
         return 0
 
     parser.print_help()

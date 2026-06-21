@@ -26,17 +26,10 @@ def _write(path: Path, text: str) -> Path:
 
 
 def _claude(schema_version="0.7.0", owner="Jordan", created="2026-01-01"):
-    return (
-        "---\n"
-        "title: Wiki Operating Schema\n"
-        "type: schema\n"
-        f"schema_version: {schema_version}\n"
-        f"created: {created}\n"
-        f"updated: {created}\n"
-        "generated_by: mneme:wiki-setup\n"
-        "---\n\n"
-        f"# {owner}'s wiki\n\n{owner} curates sources.\n"
-    )
+    """A personalized vault CLAUDE.md — the tokenized template (_tmpl) rendered
+    with an owner + created date. Shares the single frontmatter literal in _tmpl."""
+    body = "\n# {{OWNER_NAME}}'s wiki\n\n{{OWNER_NAME}} curates sources.\n"
+    return schema_update.personalize(_tmpl(schema_version, body), owner, created)
 
 
 class TestCompare(unittest.TestCase):
