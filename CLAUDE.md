@@ -126,9 +126,14 @@ The `wiki-setup` skill registers vaults in `~/.config/mneme/settings.json` with 
 ```json
 {
   "vaults": {
-    "<vault-name>": { "vault_path": "...", "description": "..." }
+    "<vault-name>": {
+      "vault_path": "...",
+      "description": "...",
+      "owner_name": "...",
+      "created": "YYYY-MM-DD"
+    }
   },
   "default_vault": "<vault-name>"
 }
 ```
-Future skills that need to know which vault to operate on should read `default_vault` from this file.
+Future skills that need to know which vault to operate on should read `default_vault` from this file. `owner_name` and `created` capture the values `wiki-setup` substituted into the vault's `CLAUDE.md`, so `wiki-update` can re-personalize the schema during a migration without re-deriving them. The fields are **additive** — readers that only need `vault_path`/`default_vault` are unaffected, and a missing `owner_name` (legacy vault) is handled by `wiki-update` falling back to extraction + confirmation.
