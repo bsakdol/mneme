@@ -46,6 +46,9 @@ scripts/               # Plugin-root shared code, referenced via ${CLAUDE_PLUGIN
   obsidian.py          # Shared Obsidian-awareness core (link parse, inert classify, link-graph)
   report.py            # Maintenance report contract (write / parse / status)
   checkrunner.py       # Shared CLI for the per-skill check scripts
+  schema_update.py     # Schema-migration core for wiki-update (version compare, 3-way merge)
+schema-history/        # Frozen schema bundles per version — wiki-update's merge bases
+  <version>/           # CLAUDE-template.md + templates/ as shipped at that schema_version
 skills/
   <skill-name>/
     SKILL.md           # Skill definition — frontmatter + step-by-step instructions
@@ -83,7 +86,7 @@ The `SKILL.md` `description` field is load-bearing: it's the condition Claude ev
 3. Add any bash helpers to `skills/<skill-name>/scripts/` and static assets to `skills/<skill-name>/assets/`.
 4. The skill is immediately available after reinstalling or reloading the plugin — no manifest changes needed.
 
-Skills follow the `wiki-*` prefix convention per the requirements doc (`docs/brainstorms/mneme-wiki-plugin-requirements.md`). Implemented: `wiki-setup`, `wiki-ingest`, and the maintenance suite (`wiki-lint`, `wiki-audit`, `wiki-gaps`, `wiki-triage`) plus the `wiki-steward` agent. Still planned: `wiki-query`, `wiki-find`, `wiki-capture`, `wiki-new`, `wiki-relate`, `wiki-config`.
+Skills follow the `wiki-*` prefix convention per the requirements doc (`docs/brainstorms/mneme-wiki-plugin-requirements.md`). Implemented: `wiki-setup`, `wiki-ingest`, `wiki-update`, and the maintenance suite (`wiki-lint`, `wiki-audit`, `wiki-gaps`, `wiki-triage`) plus the `wiki-steward` agent. Still planned: `wiki-query`, `wiki-find`, `wiki-capture`, `wiki-new`, `wiki-relate`, `wiki-config`.
 
 ## Agents
 
@@ -96,13 +99,14 @@ A skill can stop and ask the owner; an agent cannot. Unattended, run-to-completi
 
 ## Shared scripts (`scripts/`)
 
-Plugin-root `scripts/` holds code shared across skills and agents, referenced via `${CLAUDE_PLUGIN_ROOT}/scripts/`. The maintenance suite keeps its **must-not-drift logic** here (`obsidian.py` Obsidian-awareness, `report.py` report contract, `checkrunner.py` CLI, `resolve-vault.sh`), while each skill keeps its category-specific checks in its own `skills/<skill>/scripts/`. Scripts are stdlib-only Python 3 / bash and carry `test_*.py` unit tests run with `python3 -m unittest`.
+Plugin-root `scripts/` holds code shared across skills and agents, referenced via `${CLAUDE_PLUGIN_ROOT}/scripts/`. The maintenance suite keeps its **must-not-drift logic** here (`obsidian.py` Obsidian-awareness, `report.py` report contract, `checkrunner.py` CLI, `resolve-vault.sh`); `schema_update.py` carries the `wiki-update` migration core (version compare, archive base resolution, and the `git merge-file` 3-way merge), reusing `obsidian.py`'s frontmatter parser rather than duplicating it. Each skill keeps its category-specific checks in its own `skills/<skill>/scripts/`. Scripts are stdlib-only Python 3 / bash and carry `test_*.py` unit tests run with `python3 -m unittest`.
 
 ## Versioning
 
 - Plugin version lives in `.claude-plugin/plugin.json`.
 - Each skill's bundled schema version is recorded in the `schema_version` field of the frontmatter in its `assets/CLAUDE-template.md` (semver, e.g., `schema_version: 0.2.0`). The `generated_by` field records which skill scaffolded the vault as a static `plugin:skill` identifier (e.g., `mneme:wiki-setup`) — no version suffix.
 - Bump `schema_version` when the schema in `CLAUDE-template.md` changes.
+- **Snapshot before bumping (archive rule).** Before bumping `schema_version` in `CLAUDE-template.md`, copy the *outgoing* canonical bundle (`CLAUDE-template.md` + `assets/templates/`) into the plugin-root archive `schema-history/<old-version>/`. This frozen record is what `wiki-update` uses as the merge base when migrating a vault on that version — without it, `wiki-update` can only fall back to backup-and-overwrite. A unit test (`scripts/test_schema_update.py`) asserts the latest archived bundle is byte-identical to canonical, so the archive cannot silently drift.
 
 ### Version bump rules (semantic versioning)
 
@@ -113,12 +117,13 @@ After **every** change to this plugin, you must:
    - **minor** (`x.Y.0`) — new skills, new optional fields, backwards-compatible feature additions
    - **major** (`X.0.0`) — breaking changes to the vault schema contract, removed skills, or renamed frontmatter fields that require users to migrate existing vaults
 2. Create a GitHub Release tagged `vx.y.z` with a brief description of what changed. Release notes live on GitHub — there is no `CHANGELOG.md` in this repo.
+3. **Update `BACKLOG.md` in the same change.** Every change that ships, defers, or reshapes a skill, agent, or plugin feature must reconcile `BACKLOG.md` — move shipped items out of the roadmap, add newly-planned ones, and revise priorities — so the backlog never drifts from reality. Treat this as a sibling step to the version bump: both fire on every change.
 
 ## The Vault Schema
 
 `skills/wiki-setup/assets/CLAUDE-template.md` is the canonical LLM Wiki schema. It defines the three-layer vault structure (`raw/`, `wiki/`, `meta/`), all nine page types and their required sections, frontmatter fields, file naming rules, ingest/query/lint workflows, and hygiene rules. This file is written verbatim into each new vault (with `{{OWNER_NAME}}` and `{{TODAY}}` substituted) and becomes the vault's operating contract.
 
-When the schema evolves, update `CLAUDE-template.md` and bump the `schema_version` field in its frontmatter. Existing vaults are **not** retroactively updated — the new schema only takes effect in freshly bootstrapped vaults.
+When the schema evolves, update `CLAUDE-template.md` and bump the `schema_version` field in its frontmatter (and snapshot the outgoing bundle into `schema-history/` per the archive rule above). Freshly bootstrapped vaults get the new schema immediately. Existing vaults are not changed automatically — their owners run `mneme:wiki-update`, which detects the drift and migrates the vault's `CLAUDE.md` and templates to the current schema while preserving hand-edits.
 
 ## Global Settings
 

@@ -1,7 +1,9 @@
 # mneme — Backlog
 
-Tracks planned skills, plugin improvements, and open design questions.
+Tracks **planned, unstarted** work — skills, plugin improvements, and open design questions.
 Requirements context: [`docs/brainstorms/mneme-wiki-plugin-requirements.md`](docs/brainstorms/mneme-wiki-plugin-requirements.md)
+
+Shipped work is tracked in the plugin's [`CLAUDE.md`](CLAUDE.md) (Implemented list) and GitHub releases, not here. **Reconcile this backlog with every change** — move shipped items out, add new ones, revise priorities (see the version-bump rules in `CLAUDE.md`). Already shipped: `wiki-setup`, `wiki-ingest`, `wiki-update`, the maintenance suite (`wiki-lint`, `wiki-audit`, `wiki-gaps`, `wiki-triage`), and the `wiki-steward` agent.
 
 ---
 
@@ -11,7 +13,6 @@ Requirements context: [`docs/brainstorms/mneme-wiki-plugin-requirements.md`](doc
 
 | Skill | Description | Priority |
 |-------|-------------|----------|
-| `wiki-ingest` | Process an external source into a structured wiki page. | **High** |
 | `wiki-capture` | Lightweight quick-capture for a note or idea, for later full processing. | **High** |
 | `wiki-new` | Scaffold a new page from a template, varying by page type (concept, source, topic, entity). | Medium |
 
@@ -25,18 +26,13 @@ Requirements context: [`docs/brainstorms/mneme-wiki-plugin-requirements.md`](doc
 
 ### Maintenance
 
-| Skill | Description | Priority |
-|-------|-------------|----------|
-| `wiki-lint` | Check structural consistency — frontmatter completeness, tag health, link validity. | Medium |
-| `wiki-audit` | Surface stale, thin, or structurally inconsistent pages. | Low |
-| `wiki-gaps` | Identify pages that should exist based on broken wiki links or unreferenced concepts. | Low |
+The maintenance suite (`wiki-lint`, `wiki-audit`, `wiki-gaps`, `wiki-triage`) and the `wiki-steward` agent shipped in v0.4.0. No further maintenance skills are currently planned.
 
 ### Agents
 
 | Agent | Description | Priority |
 |-------|-------------|----------|
 | Ingestion agent | Processes a batch of sources end-to-end, creating or updating pages for each, without per-source confirmation. | Low |
-| Maintenance agent | Runs `wiki-audit` and `wiki-gaps` as a pipeline; returns a prioritized to-do list without per-step user confirmation. | Low |
 
 ### Setup & Configuration
 
