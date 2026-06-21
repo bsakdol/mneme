@@ -60,13 +60,14 @@ Run these steps in order. Use `Bash` for the scripts; `${CLAUDE_PLUGIN_ROOT}` re
 
    Append each as a finding object: `{id, category:"audit", dimension, tier:"judgment", page, detail, proposed_action}`. Use a stable, descriptive id. These are reported only — never acted on.
 
-6. **Write the report.** Pipe the merged findings (deterministic remaining + semantic) as a JSON array to:
+6. **Write the report.** Assemble the merged findings (deterministic remaining + semantic) into one JSON array and **write it to a temp file** with the `Write` tool (e.g. `/tmp/wiki-steward-findings.json`) — do not `echo` it inline, since a large or quote-heavy array is shell-fragile. Then feed it to `report.py` on stdin:
    ```bash
-   echo "<findings-json>" | python3 "${CLAUDE_PLUGIN_ROOT}/scripts/report.py" \
+   python3 "${CLAUDE_PLUGIN_ROOT}/scripts/report.py" \
      --vault "$VAULT_PATH" --actor wiki-steward \
-     --summary "Applied N safe fix(es); M judgment item(s) remain."
+     --summary "Applied N safe fix(es); M judgment item(s) remain." \
+     < /tmp/wiki-steward-findings.json
    ```
-   It writes `VAULT_PATH/meta/maintenance-reports/YYYY-MM-DD-HHMM.md` and prints the path. Every reported item is an open judgment item for the owner.
+   It writes `VAULT_PATH/meta/maintenance-reports/YYYY-MM-DD-HHMM.md` and prints the path. Every reported item is an open judgment item for the owner. Derive the summary's N and M from the actual tallies in steps 3-5, not a guess.
 
 7. **Log.** Append one entry to `VAULT_PATH/log.md` in the schema's log format, action `lint`, noting fixes applied and the report path.
 

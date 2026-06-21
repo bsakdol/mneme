@@ -169,33 +169,42 @@ def fix_safe(vault, args):
         rel = str(path.relative_to(vault))
         text = path.read_text(encoding="utf-8", errors="replace")
         fields, raw, body = obsidian.split_frontmatter(text)
-        new_text = text
+        prefix = text[: len(text) - len(body)]  # frontmatter block (or "")
         changed = False
 
-        # parent-path-mismatch (safe): correct nested-topic parent
+        # parent-path-mismatch (safe): correct the nested-topic parent, in the
+        # frontmatter prefix only.
         expected = _expected_parent(path, vault)
         declared = obsidian.frontmatter_link_targets(fields.get("parent", "")) if fields.get("parent") else []
         if expected and expected not in declared and "parent:" in raw:
-            new_text = re.sub(r"(?m)^parent:.*$", f'parent: "[[{expected}]]"', new_text, count=1)
+            prefix = re.sub(r"(?m)^parent:.*$", f'parent: "[[{expected}]]"', prefix, count=1)
             changed = True
             applied.append({"page": rel, "dimension": "parent-path-mismatch",
                             "detail": f"parent -> [[{expected}]]"})
 
-        # broken-link (safe): rewrite unique-candidate links in the body
+        # broken-link (safe): rewrite unique-candidate links by their exact body
+        # span, right-to-left so offsets stay valid. Replacing the span (not a
+        # global string replace) means inert/code-span copies of the same link
+        # are never touched, and anchored / escaped-pipe forms are handled by
+        # swapping only the leading target slug inside the matched raw.
         live, _inert = obsidian.extract_links(body)
+        edits = []
         for link in live:
             if link.is_embed or not link.target or link.target in valid:
                 continue
             cand = _unique_candidate(link.target, valid)
             if cand:
-                new_text = new_text.replace(f"[[{link.target}]]", f"[[{cand}]]")
-                new_text = new_text.replace(f"[[{link.target}|", f"[[{cand}|")
-                changed = True
+                fixed_raw = link.raw.replace(link.target, cand, 1)  # leading slug only
+                edits.append((link.start, link.end, fixed_raw, link.target, cand))
+        if edits:
+            for start, end, fixed_raw, old, new in sorted(edits, key=lambda e: e[0], reverse=True):
+                body = body[:start] + fixed_raw + body[end:]
                 applied.append({"page": rel, "dimension": "broken-link",
-                                "detail": f"[[{link.target}]] -> [[{cand}]]"})
+                                "detail": f"[[{old}]] -> [[{new}]]"})
+            changed = True
 
         if changed:
-            path.write_text(new_text, encoding="utf-8")
+            path.write_text(prefix + body, encoding="utf-8")
 
     return {"applied": applied, "skipped": skipped}
 
