@@ -124,6 +124,8 @@ class WikiLink:
     anchor: str | None     # heading or ^block anchor after '#'
     is_embed: bool         # leading '!' — a transclusion/embed
     line: int              # 1-based line number in the body
+    start: int             # char offset of the match start, in the body
+    end: int               # char offset of the match end, in the body
 
 
 def resolve_target(inner: str):
@@ -169,6 +171,8 @@ def _build_link(m: re.Match, line_of) -> WikiLink:
         anchor=anchor,
         is_embed=(m.group(1) == "!"),
         line=line_of(m.start()),
+        start=m.start(),
+        end=m.end(),
     )
 
 
@@ -223,6 +227,12 @@ def _parse_flat_yaml(raw: str) -> dict:
     while i < len(lines):
         line = lines[i]
         if not line.strip() or line.lstrip().startswith("#") or ":" not in line:
+            i += 1
+            continue
+        # Skip indented continuation lines (children of a nested map). The schema
+        # is flat; treat any non-block-item indented line as not-a-top-level-key
+        # rather than promoting it.
+        if line[:1] in (" ", "\t") and not line.lstrip().startswith("- "):
             i += 1
             continue
         key, _, rest = line.partition(":")

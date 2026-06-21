@@ -44,7 +44,7 @@ class ReportItem:
 
 _LINE_RE = re.compile(
     r"^- \[(?P<box>[ xX])\] "
-    r"(?P<id>\S+) · (?P<tier>\S+) · (?P<page>\S+) — "
+    r"(?P<id>\S+) · (?P<tier>\S+) · (?P<page>.+?) — "
     r"(?P<body>.*?) · status:(?P<status>\w+)\s*$"
 )
 

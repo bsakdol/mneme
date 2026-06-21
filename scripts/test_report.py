@@ -50,6 +50,14 @@ class TestRoundTrip(unittest.TestCase):
         # Lint section comes before Audit (CATEGORY_ORDER)
         self.assertLess(text.index("## Lint"), text.index("## Audit"))
 
+    def test_page_with_space_round_trips(self):
+        items = [ReportItem("x-1", "lint", "judgment", "wiki/concepts/my notes.md",
+                            "detail", "action", "open")]
+        text = report.write_report({}, items)
+        parsed = report.parse_report(text)
+        self.assertEqual(len(parsed), 1)
+        self.assertEqual(parsed[0].page, "wiki/concepts/my notes.md")
+
     def test_header_counts(self):
         text = report.write_report({"actor": "wiki-steward"}, _sample_items())
         self.assertIn("**Findings:** 3", text)

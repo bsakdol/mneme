@@ -54,6 +54,14 @@ class LintFixture(unittest.TestCase):
         for n in ("ref-a", "ref-b", "ref-c"):
             _page(w / "concepts" / f"{n}.md", tags=["arch"],
                   body="mentions [[widely-missing]] here.\n")
+        # link-form coverage: [[widget]] has a unique candidate (2026-01-01-widget),
+        # so plain / anchored / escaped-pipe forms are all safe-fixable, while the
+        # code-span copy must be left untouched.
+        _page(w / "concepts" / "linkforms.md", tags=["arch"],
+              body=("Live [[widget]] here.\n"
+                    "Anchored [[widget#section]] too.\n"
+                    "Table | [[widget\\|W]] | x |\n"
+                    "Code span: `[[widget]]` stays.\n"))
 
     def tearDown(self):
         self._tmp.cleanup()
@@ -104,6 +112,16 @@ class LintFixture(unittest.TestCase):
         lint_checks.fix_safe(self.vault, types.SimpleNamespace())
         second = lint_checks.fix_safe(self.vault, types.SimpleNamespace())
         self.assertEqual(second["applied"], [])
+
+    def test_fix_safe_handles_all_link_forms_and_spares_code_spans(self):
+        lint_checks.fix_safe(self.vault, types.SimpleNamespace())
+        text = (self.vault / "wiki" / "concepts" / "linkforms.md").read_text()
+        # plain, anchored, and escaped-pipe live links all rewritten
+        self.assertIn("Live [[2026-01-01-widget]] here.", text)
+        self.assertIn("[[2026-01-01-widget#section]]", text)
+        self.assertIn("[[2026-01-01-widget\\|W]]", text)  # escaped pipe preserved
+        # the code-span copy is inert and must be left exactly as written
+        self.assertIn("`[[widget]]`", text)
 
 
 if __name__ == "__main__":
