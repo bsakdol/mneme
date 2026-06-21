@@ -11,6 +11,28 @@ The plugin packages a growing collection of skills that cover the full lifecycle
 | Skill | Invocation | What it does |
 |-------|-----------|--------------|
 | [wiki-setup](skills/wiki-setup/README.md) | `mneme:wiki-setup` | Bootstraps an empty Obsidian vault into a ready-to-use LLM Wiki — folder structure, personalized CLAUDE.md, bookkeeping files, page templates, and a live first-ingest demo. |
+| [wiki-ingest](skills/wiki-ingest/README.md) | `mneme:wiki-ingest` | Ingests a source (URL, file, or pasted text) into the vault following the Ingest Workflow. |
+| [wiki-lint](skills/wiki-lint/README.md) | `mneme:wiki-lint` | Structural consistency — frontmatter, links, tags. Applies safe fixes on approval. |
+| [wiki-audit](skills/wiki-audit/README.md) | `mneme:wiki-audit` | Stale, thin, or inconsistent pages — orphans, stubs, stale references, conflicts. |
+| [wiki-gaps](skills/wiki-gaps/README.md) | `mneme:wiki-gaps` | Pages that should exist — concepts referenced widely with no page, and index drift. |
+| [wiki-triage](skills/wiki-triage/README.md) | `mneme:wiki-triage` | Walks you through the judgment items in a maintenance report and applies the approved ones. |
+
+**Agent**
+
+| Agent | How to run | What it does |
+|-------|-----------|--------------|
+| [wiki-steward](agents/wiki-steward.md) | dispatched (e.g. "run the steward"), or scheduled | Autonomous maintenance: runs lint + audit + gaps, applies the safe/low-risk fixes unattended, writes a prioritized report, and returns a summary. Headless — no prompts. |
+
+---
+
+## Maintenance — order of operations
+
+Maintenance has two lanes over the same findings:
+
+- **Manual (interactive):** `wiki-lint` → `wiki-audit` → `wiki-gaps`. Each detects its category, applies the safe fixes with you present, and hands off to the next. Use when you want to work through issues yourself.
+- **Automated (hands-off):** dispatch the **`wiki-steward`** agent for a full sweep — it applies the safe/low-risk fixes and writes a report to `meta/maintenance-reports/` — then run **`wiki-triage`** to work the report's judgment items.
+
+The split that keeps them tidy: the agent only ever applies **safe** and **low-risk** fixes; everything requiring judgment (creating pages, resolving conflicts, merging tags) is reported, never auto-done. Maintenance requires the mneme plugin to be installed (the vault's own `CLAUDE.md` points at it).
 
 ---
 
