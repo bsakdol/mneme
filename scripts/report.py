@@ -22,6 +22,7 @@ status, so both the human and the parser read the same source of truth:
 from __future__ import annotations
 
 import re
+import sys
 from dataclasses import dataclass
 
 STATUSES = ("open", "applied", "skipped")
@@ -133,6 +134,45 @@ def parse_report(text: str):
     return items
 
 
+def render_from_findings(findings, meta: dict) -> str:
+    """Render a report from raw findings (Finding objects or dicts). New
+    findings start ``open``. Used by the wiki-steward agent's pipeline."""
+    return write_report(meta, [item_from_finding(f) for f in findings])
+
+
+def _main(argv=None):
+    """CLI: read a JSON list of findings on stdin, write a report file.
+
+        echo '[...]' | python3 report.py --vault /v --actor wiki-steward
+    """
+    import argparse
+    import datetime
+    import json
+    from pathlib import Path
+
+    parser = argparse.ArgumentParser(
+        description="Write a maintenance report from findings JSON on stdin.")
+    parser.add_argument("--vault", required=True)
+    parser.add_argument("--actor", default="wiki-steward")
+    parser.add_argument("--summary", default="")
+    parser.add_argument("--timestamp", default=None, help="YYYY-MM-DD-HHMM (default: now)")
+    parser.add_argument("--out", default=None,
+                        help="output path (default: <vault>/meta/maintenance-reports/<timestamp>.md)")
+    args = parser.parse_args(argv)
+
+    ts = args.timestamp or datetime.datetime.now().strftime("%Y-%m-%d-%H%M")
+    findings = json.load(sys.stdin)
+    meta = {"vault": args.vault, "timestamp": ts, "actor": args.actor, "summary": args.summary}
+    text = render_from_findings(findings, meta)
+
+    out = Path(args.out) if args.out else (
+        Path(args.vault) / "meta" / "maintenance-reports" / f"{ts}.md")
+    out.parent.mkdir(parents=True, exist_ok=True)
+    out.write_text(text, encoding="utf-8")
+    print(str(out))
+    return 0
+
+
 def set_status(text: str, item_id: str, new_status: str) -> str:
     """Return ``text`` with the status of the line whose id matches flipped to
     ``new_status`` (and its checkbox synced). Used by wiki-triage."""
@@ -149,3 +189,7 @@ def set_status(text: str, item_id: str, new_status: str) -> str:
             out.append(line)
     result = "\n".join(out)
     return result + "\n" if text.endswith("\n") else result
+
+
+if __name__ == "__main__":
+    raise SystemExit(_main())
