@@ -350,21 +350,23 @@ cat ~/.config/mneme/settings.json 2>/dev/null
 mkdir -p ~/.config/mneme
 ```
 
-Then write `~/.config/mneme/settings.json` with:
+Then write `~/.config/mneme/settings.json` with (substitute OWNER_NAME and TODAY — the same `YYYY-MM-DD` value used in the scaffold — so future `mneme:wiki-update` runs can re-personalize the schema without re-deriving them):
 
 ```json
 {
   "vaults": {
     "VAULT_NAME": {
       "vault_path": "VAULT_PATH",
-      "description": "VAULT_DESCRIPTION"
+      "description": "VAULT_DESCRIPTION",
+      "owner_name": "OWNER_NAME",
+      "created": "TODAY"
     }
   },
   "default_vault": "VAULT_NAME"
 }
 ```
 
-**If the file already exists**, parse it and add the new vault entry under `vaults`. Then:
+**If the file already exists**, parse it and add the new vault entry under `vaults` — include the `owner_name` and `created` fields shown above alongside `vault_path` and `description`. Then:
 
 - If this is the only vault, set it as `default_vault`.
 - If other vaults already exist, use **AskUserQuestion** with:
