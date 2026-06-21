@@ -26,8 +26,11 @@ stdlib fallback when it is absent).
 from __future__ import annotations
 
 import argparse
+import difflib
 import json
 import os
+import re
+import shutil
 import subprocess
 import sys
 import tempfile
@@ -37,6 +40,12 @@ import obsidian  # sibling module in ${CLAUDE_PLUGIN_ROOT}/scripts
 
 OWNER_TOKEN = "{{OWNER_NAME}}"
 TODAY_TOKEN = "{{TODAY}}"
+
+# Frontmatter key order, matching the canonical CLAUDE-template.md.
+FRONTMATTER_KEYS = ("title", "type", "schema_version", "created", "updated", "generated_by")
+
+CONFLICT_START = "<<<<<<<"
+_FENCE_RE = re.compile(r"^(```|~~~)")
 
 
 # --- Plugin layout ---------------------------------------------------------
@@ -179,6 +188,123 @@ def build_report(vault: Path, root: Path, settings_path: Path | None = None) -> 
     }
 
 
+# --- 3-way merge engine (U3) -----------------------------------------------
+
+def reconstruct_frontmatter(theirs_fields: dict, bundled_fields: dict, today: str) -> str:
+    """Build the new frontmatter deterministically (KTD-3): schema_version from
+    the bundled template, created preserved from theirs, updated = today, and
+    title/type/generated_by from the bundled template. No key is owner-derived,
+    so nothing here is personalized."""
+    values = {
+        "title": bundled_fields.get("title", theirs_fields.get("title", "")),
+        "type": bundled_fields.get("type", theirs_fields.get("type", "")),
+        "schema_version": bundled_fields.get("schema_version", ""),
+        "created": theirs_fields.get("created", bundled_fields.get("created", "")),
+        "updated": today,
+        "generated_by": bundled_fields.get("generated_by", theirs_fields.get("generated_by", "")),
+    }
+    lines = ["---"]
+    lines += [f"{k}: {values[k]}" for k in FRONTMATTER_KEYS]
+    lines.append("---")
+    return "\n".join(lines) + "\n"
+
+
+def assemble(frontmatter: str, body: str) -> str:
+    """Join reconstructed frontmatter (ends with '---\\n') and a body (begins with
+    its own leading newline, per the schema's '---\\n\\n# ...' shape)."""
+    return frontmatter + body
+
+
+def count_conflicts(text: str) -> int:
+    """Fence-aware count of git conflict regions (KTD-7). A '<<<<<<<' at column 0
+    counts only when OUTSIDE a fenced code block, so literal marker-like content
+    inside ``` / ~~~ fences in the manual is never mis-detected."""
+    in_fence = False
+    count = 0
+    for raw_line in text.split("\n"):
+        line = raw_line.rstrip("\r")
+        if _FENCE_RE.match(line):
+            in_fence = not in_fence
+            continue
+        if not in_fence and line.startswith(CONFLICT_START):
+            count += 1
+    return count
+
+
+def git_available() -> bool:
+    return shutil.which("git") is not None
+
+
+def git_merge_file(theirs: str, base: str, ours: str) -> str:
+    """3-way merge of three body strings via ``git merge-file -p`` on temp files.
+    Returns the merged text (with conflict markers if any). Raises RuntimeError on
+    a git execution error (distinct from a normal conflict, which is success)."""
+    with tempfile.TemporaryDirectory() as d:
+        tp, bp, op = Path(d) / "theirs", Path(d) / "base", Path(d) / "ours"
+        tp.write_text(theirs, encoding="utf-8")
+        bp.write_text(base, encoding="utf-8")
+        op.write_text(ours, encoding="utf-8")
+        proc = subprocess.run(
+            ["git", "merge-file", "-p", "--", str(tp), str(bp), str(op)],
+            capture_output=True, text=True,
+        )
+        # git merge-file: returncode >= 0 is the conflict count; < 0 (e.g. 255)
+        # signals an execution error.
+        if proc.returncode < 0:
+            raise RuntimeError(f"git merge-file failed: {proc.stderr.strip()}")
+        return proc.stdout
+
+
+def prepare_update(vault, owner_name: str, today: str, root: Path | None = None,
+                   git_ok: bool | None = None) -> dict:
+    """Produce the migrated CLAUDE.md (or an overwrite proposal) without writing.
+
+    Returns a structured result the skill acts on:
+      {mode: 'merge'|'overwrite', outcome: 'clean'|'conflicts',
+       conflict_count, merged_text, diff_text, reason}
+    """
+    root = root or plugin_root()
+    claude = Path(vault) / "CLAUDE.md"
+    theirs_text = claude.read_text(encoding="utf-8", errors="replace")
+    theirs_fields, _r, theirs_body = obsidian.split_frontmatter(theirs_text)
+    current = str(theirs_fields.get("schema_version", ""))
+
+    bundled_fields, _br, bundled_body = obsidian.split_frontmatter(
+        canonical_template(root).read_text(encoding="utf-8", errors="replace"))
+    new_frontmatter = reconstruct_frontmatter(theirs_fields, bundled_fields, today)
+    ours_body = personalize(bundled_body, owner_name)  # body has no {{TODAY}}
+
+    base_dir = resolve_base(current, root)
+    have_git = git_available() if git_ok is None else git_ok
+
+    # Overwrite fallback: no archived base for the owner's version, or no git.
+    if base_dir is None or not have_git:
+        diff = "".join(difflib.unified_diff(
+            theirs_body.splitlines(keepends=True),
+            ours_body.splitlines(keepends=True),
+            fromfile="current/CLAUDE.md", tofile="updated/CLAUDE.md"))
+        reason = "no base archived for current version" if base_dir is None else "git unavailable"
+        return {
+            "mode": "overwrite", "outcome": "clean", "conflict_count": 0,
+            "merged_text": assemble(new_frontmatter, ours_body),
+            "diff_text": diff, "reason": reason,
+        }
+
+    base_fields, _xb, base_body_raw = obsidian.split_frontmatter(
+        (base_dir / "CLAUDE-template.md").read_text(encoding="utf-8", errors="replace"))
+    base_body = personalize(base_body_raw, owner_name)
+
+    merged_body = git_merge_file(theirs_body, base_body, ours_body)
+    conflicts = count_conflicts(merged_body)
+    return {
+        "mode": "merge",
+        "outcome": "conflicts" if conflicts else "clean",
+        "conflict_count": conflicts,
+        "merged_text": assemble(new_frontmatter, merged_body),
+        "diff_text": None, "reason": "",
+    }
+
+
 # --- CLI -------------------------------------------------------------------
 
 def main(argv=None) -> int:
@@ -186,6 +312,10 @@ def main(argv=None) -> int:
     parser.add_argument("vault", help="absolute path to the vault")
     parser.add_argument("--report", action="store_true",
                         help="print the drift-detection report as JSON")
+    parser.add_argument("--prepare", action="store_true",
+                        help="compute the migrated CLAUDE.md and print the result as JSON")
+    parser.add_argument("--owner", help="owner display name (required with --prepare)")
+    parser.add_argument("--today", help="today's date YYYY-MM-DD (required with --prepare)")
     args = parser.parse_args(argv)
 
     vault = Path(args.vault)
@@ -193,6 +323,20 @@ def main(argv=None) -> int:
 
     if args.report:
         json.dump(build_report(vault, root), sys.stdout, indent=2)
+        sys.stdout.write("\n")
+        return 0
+
+    if args.prepare:
+        ok, why = validate_owner_name(args.owner or "")
+        if not ok:
+            json.dump({"error": f"invalid --owner: {why}"}, sys.stdout)
+            sys.stdout.write("\n")
+            return 2
+        if not args.today:
+            json.dump({"error": "--today YYYY-MM-DD is required with --prepare"}, sys.stdout)
+            sys.stdout.write("\n")
+            return 2
+        json.dump(prepare_update(vault, args.owner, args.today, root), sys.stdout, indent=2)
         sys.stdout.write("\n")
         return 0
 
