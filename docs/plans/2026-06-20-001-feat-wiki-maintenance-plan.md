@@ -1,7 +1,7 @@
 ---
 title: "feat: Add wiki maintenance suite (wiki-lint, wiki-audit, wiki-gaps, wiki-triage + wiki-steward agent)"
 date: 2026-06-20
-status: active
+status: completed
 origin: docs/brainstorms/mneme-wiki-plugin-requirements.md
 ---
 
