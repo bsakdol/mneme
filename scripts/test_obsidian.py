@@ -163,6 +163,22 @@ class TestLinkGraph(unittest.TestCase):
             # the code-span link must NOT create an edge
             self.assertNotIn("not-a-link", g.outbound["alpha"])
 
+    def test_slug_collisions(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            vault = Path(tmp)
+            (vault / "wiki" / "concepts").mkdir(parents=True)
+            (vault / "wiki" / "entities").mkdir(parents=True)
+            (vault / "wiki" / "concepts" / "mercury.md").write_text(
+                "---\ntitle: M\n---\nx\n", encoding="utf-8")
+            (vault / "wiki" / "entities" / "mercury.md").write_text(
+                "---\ntitle: M\n---\nx\n", encoding="utf-8")
+            (vault / "wiki" / "concepts" / "unique.md").write_text(
+                "---\ntitle: U\n---\nx\n", encoding="utf-8")
+            cols = obsidian.slug_collisions(vault)
+            self.assertEqual(set(cols), {"mercury"})
+            self.assertEqual(cols["mercury"],
+                             ["wiki/concepts/mercury.md", "wiki/entities/mercury.md"])
+
     def test_dangling_referrers(self):
         with tempfile.TemporaryDirectory() as tmp:
             vault = Path(tmp)

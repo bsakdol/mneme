@@ -17,6 +17,7 @@ Runs the bundled Obsidian-aware checker over your vault and reports findings by 
 | `source-paths-missing-raw` | judgment | A `source_paths:` entry with no matching raw file. |
 | `tag-single-use` | judgment | A tag used on only one page. |
 | `tag-near-synonym` | judgment | Tags that look like variants of each other (`llm` vs `llms`). |
+| `duplicate-slug` | judgment | Two+ pages share a stem — an ambiguous wiki-link target that silently shadows a page. |
 
 **Safe** findings can be auto-applied (idempotent, reversible). **Judgment** findings are reported for you to decide — the skill never auto-creates pages, deletes anything, or rewrites prose.
 

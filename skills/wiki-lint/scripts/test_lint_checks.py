@@ -62,6 +62,9 @@ class LintFixture(unittest.TestCase):
                     "Anchored [[widget#section]] too.\n"
                     "Table | [[widget\\|W]] | x |\n"
                     "Code span: `[[widget]]` stays.\n"))
+        # same stem in two folders -> duplicate-slug (ambiguous link target)
+        _page(w / "concepts" / "dup.md", tags=["arch"])
+        _page(w / "entities" / "dup.md", type_="entity", tags=["arch"])
 
     def tearDown(self):
         self._tmp.cleanup()
@@ -76,8 +79,15 @@ class LintFixture(unittest.TestCase):
         dims = self._dims()
         for expected in ("broken-link", "frontmatter-missing",
                          "frontmatter-bare-question", "parent-path-mismatch",
-                         "source-paths-missing-raw", "tag-single-use", "tag-near-synonym"):
+                         "source-paths-missing-raw", "tag-single-use", "tag-near-synonym",
+                         "duplicate-slug"):
             self.assertIn(expected, dims, f"expected {expected} in {dims}")
+
+    def test_duplicate_slug(self):
+        ds = [f for f in self._detect() if f.dimension == "duplicate-slug"]
+        self.assertEqual(len(ds), 1)
+        self.assertIn("dup", ds[0].detail)
+        self.assertEqual(ds[0].tier, "judgment")
 
     def test_broken_link_tiers(self):
         bl = [f for f in self._detect() if f.dimension == "broken-link"]

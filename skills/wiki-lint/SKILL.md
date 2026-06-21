@@ -44,7 +44,7 @@ This prints JSON: `{schema_version, category, counts, findings:[{id, category, d
 Summarize in chat, grouped by tier:
 
 - **Safe** (one correct outcome, auto-fixable): unique-candidate broken-link slug fixes, nested-topic `parent:` corrections.
-- **Judgment** (you decide): missing frontmatter, bare-`?` values, dangling one-off links, `source_paths:` pointing at missing raw files, single-use and near-synonym tags.
+- **Judgment** (you decide): missing frontmatter, bare-`?` values, dangling one-off links, `source_paths:` pointing at missing raw files, single-use and near-synonym tags, duplicate slugs (same stem in two folders — an ambiguous link target).
 
 Give counts per dimension and list the notable items. Keep it scannable.
 
