@@ -87,5 +87,20 @@ class TestStatusUpdates(unittest.TestCase):
         self.assertEqual(it.id, "x-1")
 
 
+class TestRenderFromFindings(unittest.TestCase):
+    def test_render_from_dicts_round_trips(self):
+        findings = [
+            {"id": "broken-link-1", "category": "lint", "tier": "safe",
+             "page": "wiki/a.md", "detail": "d", "proposed_action": "fix"},
+            {"id": "missing-page-1", "category": "gaps", "tier": "judgment",
+             "page": "wiki/index.md", "detail": "[[x]] x3", "proposed_action": "create"},
+        ]
+        meta = {"vault": "/v", "timestamp": "2026-06-20-0900", "actor": "wiki-steward"}
+        text = report.render_from_findings(findings, meta)
+        parsed = {it.id: it for it in report.parse_report(text)}
+        self.assertEqual(set(parsed), {"broken-link-1", "missing-page-1"})
+        self.assertTrue(all(it.status == "open" for it in parsed.values()))
+
+
 if __name__ == "__main__":
     unittest.main()
