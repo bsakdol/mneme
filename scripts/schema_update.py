@@ -188,11 +188,17 @@ def reconstruct_frontmatter(theirs_fields: dict, bundled_fields: dict, today: st
     the bundled template, created preserved from theirs, updated = today, and
     title/type/generated_by from the bundled template. No key is owner-derived,
     so nothing here is personalized."""
+    # Preserve the vault's original created date; but a malformed/legacy vault may
+    # have no created value (or, in a degenerate case, an unsubstituted token).
+    # Fall back to today rather than writing an empty or literal "{{TODAY}}" date.
+    created = str(theirs_fields.get("created", "")).strip()
+    if not created or "{{" in created:
+        created = today
     values = {
         "title": bundled_fields.get("title", theirs_fields.get("title", "")),
         "type": bundled_fields.get("type", theirs_fields.get("type", "")),
         "schema_version": bundled_fields.get("schema_version", ""),
-        "created": theirs_fields.get("created", bundled_fields.get("created", "")),
+        "created": created,
         "updated": today,
         "generated_by": bundled_fields.get("generated_by", theirs_fields.get("generated_by", "")),
     }
@@ -234,9 +240,15 @@ def git_merge_file(theirs: str, base: str, ours: str) -> str:
             ["git", "merge-file", "-p", "--", str(tp), str(bp), str(op)],
             capture_output=True, text=True,
         )
-        # git merge-file: returncode >= 0 is the conflict count; < 0 (e.g. 255)
-        # signals an execution error.
-        if proc.returncode < 0:
+        # git merge-file with -p: a clean merge exits 0, a conflicted merge exits
+        # with the conflict count AND still writes the merged file (with markers)
+        # to stdout. An execution error exits non-zero (255) with NO stdout. The
+        # exit code alone can't tell "N conflicts" from error (the man page's
+        # "negative on error" surfaces as 255 to the shell), so the reliable
+        # discriminator is: non-zero exit with empty stdout == error. This guards
+        # against treating an errored merge as a clean empty result and blanking
+        # the file.
+        if proc.returncode != 0 and not proc.stdout:
             raise RuntimeError(f"git merge-file failed: {proc.stderr.strip()}")
         return proc.stdout
 

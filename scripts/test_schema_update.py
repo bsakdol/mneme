@@ -331,6 +331,20 @@ class TestReconstructFrontmatter(unittest.TestCase):
         self.assertIn("updated: 2026-06-21", fm)     # today
         self.assertTrue(fm.startswith("---\n") and fm.endswith("---\n"))
 
+    def test_missing_created_falls_back_to_today(self):
+        bundled = {"title": "t", "type": "schema", "schema_version": "0.8.0",
+                   "created": "{{TODAY}}", "updated": "{{TODAY}}", "generated_by": "g"}
+        # legacy/malformed vault with no created key
+        fm = schema_update.reconstruct_frontmatter({"schema_version": "0.7.0"}, bundled, "2026-06-21")
+        self.assertIn("created: 2026-06-21", fm)
+        self.assertNotIn("{{TODAY}}", fm)            # never write an unsubstituted token
+
+    def test_token_created_falls_back_to_today(self):
+        bundled = {"schema_version": "0.8.0", "created": "{{TODAY}}"}
+        fm = schema_update.reconstruct_frontmatter({"created": "{{TODAY}}"}, bundled, "2026-06-21")
+        self.assertIn("created: 2026-06-21", fm)
+        self.assertNotIn("{{TODAY}}", fm)
+
 
 if __name__ == "__main__":
     unittest.main()
