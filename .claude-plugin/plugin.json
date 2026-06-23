@@ -1,6 +1,6 @@
 {
   "name": "mneme",
-  "version": "0.5.0",
+  "version": "0.5.1",
   "description": "LLM Wiki toolkit — skills for building and maintaining a personal knowledge base as a Claude-powered wiki in Obsidian.",
   "keywords": ["wiki", "knowledge-management", "obsidian", "second-brain", "llm"]
 }

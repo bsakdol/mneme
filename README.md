@@ -4,6 +4,12 @@ A Claude Code plugin for building and maintaining a personal knowledge base as a
 
 The plugin packages a growing collection of skills that cover the full lifecycle of an LLM Wiki: initial setup, source ingest, knowledge querying, and ongoing maintenance. Each skill follows the canonical mneme schema so all your wikis stay structurally consistent across installs and machines.
 
+## Why "mneme"?
+
+**Mneme** (Greek *Μνήμη*, "memory") was the Muse of memory — one of the three original Muses worshipped in Boeotia before the canonical nine, alongside Aoide ("song") and Melete ("practice"). She is the daughter of Mnemosyne, the Titaness who personified memory itself.
+
+The name fits the plugin's purpose: this is a tool for *remembering* — capturing sources, synthesizing them into durable knowledge, and keeping that knowledge organized so nothing you've learned slips away. Where a muse inspires, Mneme remembers. Pronounced *NEE-mee*.
+
 ---
 
 ## Skills
